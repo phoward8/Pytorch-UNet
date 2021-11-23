@@ -4,5 +4,7 @@ __pycache__/
 checkpoints/
 *.pth
 *.jpg
-venv/
+net-env/
 .idea/
+data/CW
+wandb/

@@ -7,8 +7,9 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
+from torchvision.io import read_image, ImageReadMode
 
-from utils.data_loading import BasicDataset
+from utils.data_loading import BasicDataset, ImageDataset
 from unet import UNet
 from utils.utils import plot_img_and_mask
 
@@ -21,7 +22,7 @@ def predict_img(net,
     img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor, is_mask=False))
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
-
+    # img = full_img.to(device=device, dtype=torch.float32)
     with torch.no_grad():
         output = net(img)
 
@@ -74,6 +75,8 @@ def mask_to_image(mask: np.ndarray):
         return Image.fromarray((mask * 255).astype(np.uint8))
     elif mask.ndim == 3:
         return Image.fromarray((np.argmax(mask, axis=0) * 255 / mask.shape[0]).astype(np.uint8))
+    else: # added
+        return mask
 
 
 if __name__ == '__main__':
@@ -81,7 +84,7 @@ if __name__ == '__main__':
     in_files = args.input
     out_files = get_output_filenames(args)
 
-    net = UNet(n_channels=3, n_classes=2)
+    net = UNet(n_channels=1, n_classes=4)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Loading model {args.model}')
@@ -95,6 +98,7 @@ if __name__ == '__main__':
     for i, filename in enumerate(in_files):
         logging.info(f'\nPredicting image {filename} ...')
         img = Image.open(filename)
+        # img = read_image(filename, ImageReadMode.GRAY)
 
         mask = predict_img(net=net,
                            full_img=img,

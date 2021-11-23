@@ -1,4 +1,5 @@
 import logging
+import os
 from os import listdir
 from os.path import splitext
 from pathlib import Path
@@ -8,6 +9,7 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
+from torchvision.io import read_image, ImageReadMode
 
 class BasicDataset(Dataset):
     def __init__(self, images_dir: str, masks_dir: str, scale: float = 1.0, mask_suffix: str = ''):
@@ -78,3 +80,34 @@ class BasicDataset(Dataset):
 class CarvanaDataset(BasicDataset):
     def __init__(self, images_dir, masks_dir, scale=1):
         super().__init__(images_dir, masks_dir, scale, mask_suffix='_mask')
+
+
+# New
+class ImageDataset(Dataset):
+    def __init__(self, imgDir, maskDir):
+        self.imgPaths = []
+        self.maskPaths = []
+
+        # Get all img paths
+        for path, folders, files in os.walk(imgDir):
+            for file in files:
+                self.imgPaths.append(os.path.join(path, file))
+
+        # Get all mask paths
+        for path, folders, files in os.walk(maskDir):
+            for file in files:
+                self.maskPaths.append(os.path.join(path, file))
+
+        # Check number of images and masks are the same
+        if len(self.imgPaths) != len(self.maskPaths):
+            raise Exception("Different number of images and masks")
+
+    def __len__(self):
+        return len(self.imgPaths)
+
+    def __getitem__(self, idx):
+        # Returns image and mask at index as a dictionary
+        return {
+            "image": read_image(self.imgPaths[idx], ImageReadMode.GRAY),
+            "mask": read_image(self.maskPaths[idx], ImageReadMode.GRAY)
+        }

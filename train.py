@@ -11,15 +11,19 @@ from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from utils.data_loading import BasicDataset, CarvanaDataset
+from utils.data_loading import BasicDataset, CarvanaDataset, ImageDataset
 from utils.dice_score import dice_loss
 from evaluate import evaluate
 from unet import UNet
 
-dir_img = Path('./data/imgs/')
-dir_mask = Path('./data/masks/')
+# dir_img = Path('./data/imgs/')
+# dir_mask = Path('./data/masks/')
 dir_checkpoint = Path('./checkpoints/')
 
+train_img_path = './data/CW/data/train/image'
+train_mask_path = './data/CW/data/train/mask'
+val_img_path = './data/CW/data/val/image'
+val_mask_path = './data/CW/data/val/mask'
 
 def train_net(net,
               device,
@@ -31,19 +35,22 @@ def train_net(net,
               img_scale: float = 0.5,
               amp: bool = False):
     # 1. Create dataset
-    try:
-        dataset = CarvanaDataset(dir_img, dir_mask, img_scale)
-    except (AssertionError, RuntimeError):
-        dataset = BasicDataset(dir_img, dir_mask, img_scale)
+    # try:
+    #     dataset = CarvanaDataset(dir_img, dir_mask, img_scale)
+    # except (AssertionError, RuntimeError):
+    #     dataset = BasicDataset(dir_img, dir_mask, img_scale)
+
+    train_set = ImageDataset(train_img_path, train_mask_path)
+    val_set = ImageDataset(val_img_path, val_mask_path)
 
     # 2. Split into train / validation partitions
-    n_val = int(len(dataset) * val_percent)
-    n_train = len(dataset) - n_val
-    train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
+    n_val = len(val_set)
+    n_train = len(train_set)
+    # train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
 
     # 3. Create data loaders
     loader_args = dict(batch_size=batch_size, num_workers=4, pin_memory=True)
-    train_loader = DataLoader(train_set, shuffle=True, **loader_args)
+    train_loader = DataLoader(train_set, shuffle=True, drop_last=True, **loader_args)
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
 
     # (Initialize logging)
@@ -90,6 +97,7 @@ def train_net(net,
 
                 with torch.cuda.amp.autocast(enabled=amp):
                     masks_pred = net(images)
+                    true_masks = torch.argmax(true_masks, dim=1) # added
                     loss = criterion(masks_pred, true_masks) \
                            + dice_loss(F.softmax(masks_pred, dim=1).float(),
                                        F.one_hot(true_masks, net.n_classes).permute(0, 3, 1, 2).float(),
@@ -168,7 +176,7 @@ if __name__ == '__main__':
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
-    net = UNet(n_channels=3, n_classes=2, bilinear=True)
+    net = UNet(n_channels=1, n_classes=4, bilinear=True)
 
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
