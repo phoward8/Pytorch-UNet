@@ -5,6 +5,7 @@ checkpoints/
 *.pth
 *.jpg
 net-env/
+venv/
 .idea/
 data/CW
 wandb/

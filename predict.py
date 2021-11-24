@@ -16,13 +16,12 @@ from utils.utils import plot_img_and_mask
 def predict_img(net,
                 full_img,
                 device,
-                scale_factor=1,
                 out_threshold=0.5):
     net.eval()
-    img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor, is_mask=False))
+    img = full_img
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
-    # img = full_img.to(device=device, dtype=torch.float32)
+
     with torch.no_grad():
         output = net(img)
 
@@ -31,13 +30,7 @@ def predict_img(net,
         else:
             probs = torch.sigmoid(output)[0]
 
-        tf = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.Resize((full_img.size[1], full_img.size[0])),
-            transforms.ToTensor()
-        ])
-
-        full_mask = tf(probs.cpu()).squeeze()
+        full_mask = probs.cpu().squeeze()
 
     if net.n_classes == 1:
         return (full_mask > out_threshold).numpy()
@@ -97,12 +90,10 @@ if __name__ == '__main__':
 
     for i, filename in enumerate(in_files):
         logging.info(f'\nPredicting image {filename} ...')
-        img = Image.open(filename)
-        # img = read_image(filename, ImageReadMode.GRAY)
+        img = ImageDataset.loadImage(filename)
 
         mask = predict_img(net=net,
                            full_img=img,
-                           scale_factor=args.scale,
                            out_threshold=args.mask_threshold,
                            device=device)
 

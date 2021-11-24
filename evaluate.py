@@ -11,12 +11,10 @@ def evaluate(net, dataloader, device):
     dice_score = 0
 
     # iterate over the validation set
-    for batch in tqdm(dataloader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
-        image, mask_true = batch['image'], batch['mask']
+    for image, mask_true in tqdm(dataloader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
         # move images and labels to correct device and type
         image = image.to(device=device, dtype=torch.float32)
         mask_true = mask_true.to(device=device, dtype=torch.long)
-        mask_true = torch.argmax(mask_true, dim=1) # added
         mask_true = F.one_hot(mask_true, net.n_classes).permute(0, 3, 1, 2).float()
 
         with torch.no_grad():

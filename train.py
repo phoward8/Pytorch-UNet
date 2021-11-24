@@ -20,10 +20,10 @@ from unet import UNet
 # dir_mask = Path('./data/masks/')
 dir_checkpoint = Path('./checkpoints/')
 
-train_img_path = './data/CW/data/train/image'
-train_mask_path = './data/CW/data/train/mask'
-val_img_path = './data/CW/data/val/image'
-val_mask_path = './data/CW/data/val/mask'
+train_img_path = './data/train/image'
+train_mask_path = './data/train/mask'
+val_img_path = './data/val/image'
+val_mask_path = './data/val/mask'
 
 def train_net(net,
               device,
@@ -83,21 +83,18 @@ def train_net(net,
         net.train()
         epoch_loss = 0
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
-            for batch in train_loader:
-                images = batch['image']
-                true_masks = batch['mask']
+            for images, true_masks in train_loader:
 
                 assert images.shape[1] == net.n_channels, \
                     f'Network has been defined with {net.n_channels} input channels, ' \
                     f'but loaded images have {images.shape[1]} channels. Please check that ' \
                     'the images are loaded correctly.'
 
-                images = images.to(device=device, dtype=torch.float32)
-                true_masks = true_masks.to(device=device, dtype=torch.long)
+                images = images.to(device=device)
+                true_masks = true_masks.to(device=device)
 
                 with torch.cuda.amp.autocast(enabled=amp):
                     masks_pred = net(images)
-                    true_masks = torch.argmax(true_masks, dim=1) # added
                     loss = criterion(masks_pred, true_masks) \
                            + dice_loss(F.softmax(masks_pred, dim=1).float(),
                                        F.one_hot(true_masks, net.n_classes).permute(0, 3, 1, 2).float(),

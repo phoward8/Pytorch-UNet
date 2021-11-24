@@ -10,6 +10,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 from torchvision.io import read_image, ImageReadMode
+from torchvision import transforms
 
 class BasicDataset(Dataset):
     def __init__(self, images_dir: str, masks_dir: str, scale: float = 1.0, mask_suffix: str = ''):
@@ -106,8 +107,16 @@ class ImageDataset(Dataset):
         return len(self.imgPaths)
 
     def __getitem__(self, idx):
-        # Returns image and mask at index as a dictionary
-        return {
-            "image": read_image(self.imgPaths[idx], ImageReadMode.GRAY),
-            "mask": read_image(self.maskPaths[idx], ImageReadMode.GRAY)
-        }
+        return self.loadImage(self.imgPaths[idx]), self.loadMask(self.maskPaths[idx])
+
+    @staticmethod
+    def loadImage(path):
+        image = read_image(path, ImageReadMode.GRAY)
+        image = transforms.ConvertImageDtype(torch.float32)(image)
+        return image
+
+    @staticmethod
+    def loadMask(path):
+        mask = read_image(path, ImageReadMode.GRAY)
+        mask = mask.squeeze().to(torch.long)
+        return mask
